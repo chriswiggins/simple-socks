@@ -1,6 +1,6 @@
 {
-  "name": "simple-socks",
-  "version": "1.0.2",
+  "name": "@chriswiggins/simple-socks",
+  "version": "1.0.3",
   "description": "proxies requests ",
   "main": "dist/socks5.js",
   "scripts": {
@@ -15,7 +15,8 @@
   "author": "https://github.com/brozeph",
   "contributors": [
     "https://github.com/pronskiy",
-    "https://github.com/fabiensk"
+    "https://github.com/fabiensk",
+    "https://github.com/chriswiggins"
   ],
   "license": "MIT",
   "keywords": [

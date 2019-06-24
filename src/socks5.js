@@ -9,6 +9,7 @@ import {
 } from './constants';
 
 import binary from 'binary';
+import crypto from "crypto";
 import domain from 'domain';
 import net from 'net';
 import put from 'put';
@@ -38,7 +39,7 @@ class SocksServer {
 	constructor (options) {
 		let self = this;
 
-		this.activeSessions = [];
+		this.activeSessions = {};
 		this.options = options || {};
 		this.server = net.createServer((socket) => {
 			socket.on('error', (err) => {
@@ -138,7 +139,9 @@ class SocksServer {
 						}
 
 						// append socket to active sessions
-						self.activeSessions.push(socket);
+						// self.activeSessions.push(socket);
+						socket.id = crypto.randomBytes(20).toString('hex');
+						self.activeSessions[socket.id] = socket;
 
 						// create dst
 						args.dst = {};
@@ -251,6 +254,8 @@ class SocksServer {
 										destination.on('data', (data) => {
 											self.server.emit(EVENTS.PROXY_DATA, data);
 										});
+
+										socket.destination = destination;
 									});
 
 									// capture connection errors and response appropriately
@@ -272,6 +277,21 @@ class SocksServer {
 
 										return end(RFC_1928_REPLIES.NETWORK_UNREACHABLE, args);
 									});
+
+									destination.once('end', () => {
+										// console.log('Destination Ended');
+										socket.end();
+										onEnd();
+									});
+
+									if (self.options.socketTimeout) {
+										destination.setTimeout(self.options.socketTimeout, () => {
+											// console.log('Destination timeout')
+											socket.end();
+											destination.end();
+											onEnd();
+										})
+									}
 								}));
 						} else {
 							// bind and udp associate commands
@@ -376,14 +396,24 @@ class SocksServer {
 					});
 			}
 
+			const onEnd = () => {
+				// remove the session from currently the active sessions list
+				if (this.activeSessions[socket.id]) {
+					// console.log('Socket ended');
+					if (this.activeSessions[socket.id].destination) {
+						this.activeSessions[socket.id].destination.destroy();
+					}	
+
+					this.activeSessions[socket.id].destroy();
+					delete this.activeSessions[socket.id];
+				}
+			}
+
 			// capture the client handshake
 			socket.once('data', handshake);
 
 			// capture socket closure
-			socket.once('end', () => {
-				// remove the session from currently the active sessions list
-				self.activeSessions.splice(self.activeSessions.indexOf(socket), 1);
-			});
+			socket.once('end', onEnd);
 		});
 	}
 }
